@@ -1,69 +1,109 @@
 #include <stdio.h>
-#include <stdbool.h>
-#include <math.h>
+#include <stdlib.h>
 
-// Simple struct for a point
-typedef struct
-{
-	double x, y;
+// To avoid libraries, simple struct for a point
+typedef struct Point {
+    double x, y;
+    struct Point *next;
 } Point;
 
 // Function to check if a point is inside a polygon
-bool point_in_polygon(Point point, Point *polygon, int num_vertices)
-{
-	double x = point.x, y = point.y;
-	bool inside = false;
+int point_in_polygon(Point point, Point *polygon) {
+    double x = point.x, y = point.y;
+    int inside = 0;
 
-	Point p1 = polygon[0], p2;
+    if (!polygon) return 0; // In case some buffon gives an empty polygon
 
-	for (int i = 1; i <= num_vertices; i++)
-	{
-		p2 = polygon[i % num_vertices];
-		// Check point against vertexes of the polygon
-		if (y > fmin(p1.y, p2.y))
-		{
-			if (y <= fmax(p1.y, p2.y))
-			{
-				if (x <= fmax(p1.x, p2.x))
-				{
-					double x_intersection = (y - p1.y) * (p2.x - p1.x) / (p2.y - p1.y) + p1.x;
+    Point *p1 = polygon;
+    Point *p2 = polygon->next;
 
-					if (p1.x == p2.x || x <= x_intersection)
-					{
-						// Flip the inside flag
-						inside = !inside;
-					}
-				}
-			}
-		}
+    do {
+        if (p2 == NULL) p2 = polygon;
 
-		// Store the current point as the first point for the next iteration
-		p1 = p2;
-	}
+        if (y > (p1->y < p2->y ? p1->y : p2->y)) {
+            if (y <= (p1->y > p2->y ? p1->y : p2->y)) {
+                if (x <= (p1->x > p2->x ? p1->x : p2->x)) {
+                    double x_intersection = (y - p1->y) * (p2->x - p1->x) / (p2->y - p1->y) + p1->x;
 
-	// Return the value of the inside flag
-	return inside;
+                    if (p1->x == p2->x || x <= x_intersection) {
+                        // Flip the inside flag
+                        inside = !inside;
+                    }
+                }
+            }
+        }
+
+        // Continue to the next point
+        p1 = p2;
+        p2 = p2->next;
+    } while (p1 != polygon);
+    
+    return inside;
 }
 
-int main()
-{
-	// Define a point to test
-	Point point = {182, 60};
+// Dummy Function to create a new point
+Point *create_point(double x, double y) {
+    Point *new_point = (Point *)malloc(sizeof(Point));
+    if (!new_point) {
+        printf("Memory allocation failed\n");
+        exit(1);
+    }
+    new_point->x = x;
+    new_point->y = y;
+    new_point->next = NULL;
+    return new_point;
+}
 
-	// Define a polygon
-	Point polygon[] = {
-		{186, 14}, {186, 44}, {175, 115}, {175, 85}};
-	int num_vertices = sizeof(polygon) / sizeof(polygon[0]);
+// Function to add a point to our polygon
+void add_point(Point **polygon, double x, double y) {
+    Point *new_point = create_point(x, y);
+    if (!*polygon) {
+        *polygon = new_point;
+        new_point->next = new_point; // Make it circular
+    } else {
+        Point *temp = *polygon;
+        while (temp->next != *polygon) {
+            temp = temp->next;
+        }
+        temp->next = new_point;
+        new_point->next = *polygon; // Maintain circularity
+    }
+}
 
-	// Check if the point is inside the polygon
-	if (point_in_polygon(point, polygon, num_vertices))
-	{
-		printf("Point is inside the polygon\n");
-	}
-	else
-	{
-		printf("Point is outside the polygon\n");
-	}
+// Function to free the linked list
+void free_polygon(Point *polygon) {
+    if (!polygon) return;
 
-	return 0;
+    Point *current = polygon;
+    Point *next;
+
+    do {
+        next = current->next;
+        free(current);
+        current = next;
+    } while (current != polygon);
+}
+
+int main() {
+    // Define a point to test
+    Point test_point = {182, 60, NULL};
+
+    // Define a polygon
+    Point *polygon = NULL;
+    add_point(&polygon, 186, 14);
+    add_point(&polygon, 186, 44);
+    add_point(&polygon, 175, 115);
+    add_point(&polygon, 175, 85);
+
+    // Check if the point is inside the polygon
+    if (point_in_polygon(test_point, polygon)) {
+        printf("Point is inside the polygon\n");
+    } else {
+        printf("Point is outside the polygon\n");
+    }
+
+    // Free the allocated memory
+    free_polygon(polygon);
+
+    return 0;
 }
